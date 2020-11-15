@@ -82,18 +82,15 @@ static int get_source_fd(const char *pathname)
 static int get_iv(unsigned char *iv)
 {
     int n = 0;
-    char *temp_iv[16] = {0};
-	char *piv = (char *)temp_iv;
+    char temp_iv[AES256_BLOCK_SIZE] = {0};
+    char *piv = temp_iv;
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "Urandom fetch failed: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
-    /*
-     * Block size is well-known - 16 bytes (for AES)
-     */
-    n = read(fd, iv, 16);
+    n = read(fd, iv, AES256_BLOCK_SIZE);
     if (n < 0) {
         fprintf(stderr, "Reading from /dev/urandom failed %s\n", strerror(errno));
         return EXIT_FAILURE;
@@ -102,7 +99,7 @@ static int get_iv(unsigned char *iv)
     for (int i = 0 ; i < 8; i++)
         piv += sprintf(piv, "%02x", iv[i]);
 
-    memmove(iv, (unsigned char *)temp_iv, 16);
+    memmove(iv, (unsigned char *)temp_iv, AES256_BLOCK_SIZE);
 
     close(fd);
 
@@ -122,7 +119,7 @@ static void *fetch_payload(int fd, size_t size)
 
 static int destroy_payload(void *buf)
 {
-    int ret = munmap(buf, 16);
+    int ret = munmap(buf, AES256_BLOCK_SIZE);
     if (ret < 0) {
         fprintf(stderr, "Unmapping failed: %s\n", strerror(errno));
         return EXIT_FAILURE;
@@ -133,15 +130,13 @@ static int destroy_payload(void *buf)
 static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text, unsigned int text_len)
 {
     int len = 0;
-    unsigned int nblock = 0;
-    unsigned int padded_bytes = 0;
 
-    int done_len = 0;
-    unsigned int block_size = 16;
-    unsigned char buff[64+16-1] = {0};
+    int pushed_len = 0;
+    unsigned int block_size = AES256_BLOCK_SIZE;
+    unsigned char buff[BUFFER_SIZE+AES256_BLOCK_SIZE-1] = {0};
 
-    nblock = (unsigned int)(text_len/block_size);
-    padded_bytes = text_len - (nblock * block_size);
+    unsigned int nblock = (unsigned int)(text_len/block_size);
+    unsigned int padded_bytes = text_len - (nblock * block_size);
 
     if (NULL == ctx) {
         printf("Not able to push payload dut to broken context\n");
@@ -154,8 +149,8 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
     }
 
     /*
-     * More than 1 block with with 16 bytes
-     * block block block block ... by 16 bytes
+     * More than 1 block with with AES256_BLOCK_SIZE bytes
+     * block block block block ... by AES256_BLOCK_SIZE bytes
      */
     for (unsigned int i = 0; i < nblock; i++) {
         if (0 == EVP_CipherUpdate(ctx, buff, &len,
@@ -211,13 +206,7 @@ struct aes_header *encrypt_aes256(const char *source,
                                   const char *dest,
                                   const unsigned char *key)
 {
-    int ret, len = 0;
-    uint32_t checksum = 0;
-    off_t header_len = 0;
-    uint8_t iv[16] = {0};
-    unsigned int plaintext_size = 0;
-
-    unsigned char *plaintext = NULL;
+    uint8_t iv[AES256_BLOCK_SIZE] = {0};
 
     struct aes_header *header = NULL;
 
@@ -255,7 +244,7 @@ struct aes_header *encrypt_aes256(const char *source,
     header->magic_number = (uint32_t)0xDEADBEEF;
     header->size = (uint32_t)plaintext_size;
     header->checksum = checksum;
-    memmove(header->iv, iv, 16);
+    memmove(header->iv, iv, AES256_BLOCK_SIZE);
 
     /* Map header structure in memory, not to copy cell to cell */
     len = push_payload(dfd, (unsigned char *)header, header_len);
@@ -292,6 +281,7 @@ int decrypt_aes256(const char *source,
                    const char *destination,
                    const unsigned char *key)
 {
+    uint8_t header_iv[AES256_BLOCK_SIZE] = {0};
 
     struct stat source_stbuf = {0};
     struct aes_header header = {0};
@@ -316,7 +306,7 @@ int decrypt_aes256(const char *source,
     /* Dispatch header from encrypted file */
     header_size = header.size;
     header_crc = header.checksum;
-    memmove(header_iv, header.iv, 16);
+    memmove(header_iv, header.iv, AES256_BLOCK_SIZE);
 
     /* Split payload and get ciphertext */
     ciphertext_len = payload_len - header_len;

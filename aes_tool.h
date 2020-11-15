@@ -1,5 +1,8 @@
 #include <stdint.h>
 
+#define AES256_BLOCK_SIZE 16
+#define BUFFER_SIZE 64
+
 struct aes_header {
     uint32_t magic_number;  // 0xDEAFBEEF - first 4 bytes of header
     uint32_t size;          // Size of plain text
