@@ -1,6 +1,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/*
+ * Source code and lookup table were taken from MIT repository:
+ * https://web.mit.edu/freebsd/head/sys/libkern/crc32.c
+ */
+
 static const uint32_t crc32_tab[] = {
 	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
 	0xe963a535, 0x9e6495a3,	0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
@@ -47,5 +52,13 @@ static const uint32_t crc32_tab[] = {
 	0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 };
 
+static uint32_t crc32(const void *buf, size_t size)
+{
+        const uint8_t *p = (const uint8_t *)buf;
+        uint32_t crc;
 
-uint32_t crc32(const void *buf, size_t size);
+        crc = ~0U;
+        while (size--)
+                crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
+        return crc ^ ~0U;
+ }
