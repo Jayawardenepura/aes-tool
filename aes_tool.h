@@ -9,11 +9,10 @@ struct aes_header {
 
 void show_header(struct aes_header *header);
 
-struct aes_header *encrypt_aes256(char *source,
-                   char *dest,
-                   unsigned char *key);
+struct aes_header *encrypt_aes256(const char *source,
+                                  const char *dest,
+                                  const unsigned char *key);
 
-int decrypt_aes256(char *source,
-                   char *destination,
-                   unsigned char *key);
-
+int decrypt_aes256(const char *source,
+                   const char *destination,
+                   const unsigned char *key);

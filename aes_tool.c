@@ -12,7 +12,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 
-static EVP_CIPHER_CTX *context_register(unsigned char *key, unsigned char *iv, int do_encrypt)
+static EVP_CIPHER_CTX *context_register(const unsigned char *key, unsigned char *iv, int do_encrypt)
 {
     EVP_CIPHER_CTX *ctx;
 
@@ -207,9 +207,9 @@ void show_header(struct aes_header *header)
     printf("----------------------\n");
 }
 
-struct aes_header *encrypt_aes256(char *source,
-                   char *dest,
-                   unsigned char *key)
+struct aes_header *encrypt_aes256(const char *source,
+                                  const char *dest,
+                                  const unsigned char *key)
 {
     int ret, len = 0;
     uint32_t checksum = 0;
@@ -288,9 +288,10 @@ int decrypt_aes256(char *source,
     uint32_t header_crc = 0;
     uint8_t header_iv[16] = {0};
 
-    unsigned char *payload = NULL;
-    unsigned char *plaintext = NULL;
-    unsigned char *ciphertext = NULL;
+int decrypt_aes256(const char *source,
+                   const char *destination,
+                   const unsigned char *key)
+{
 
     struct stat source_stbuf = {0};
     struct aes_header header = {0};
