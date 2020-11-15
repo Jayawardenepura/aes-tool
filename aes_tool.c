@@ -110,7 +110,7 @@ static void *fetch_payload(int fd, size_t size)
 {
     void *base = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == base) {
-        fprintf(stderr, "Not able to fetch payload %s\n", strerror(errno));
+        fprintf(stderr, "Not able to fetch payload: %s\n", strerror(errno));
         return NULL;
     }
 
@@ -159,20 +159,20 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
             ERR_print_errors_fp(stderr);
             return -1;
         }
-        done_len += len;
+        pushed_len += len;
         push_payload(fd, buff, len);
     }
 
-    /* Append less than 16 bytes if exist */
+    /* Append less than AES256_BLOCK_SIZE bytes if exist */
     if(0 == EVP_CipherUpdate(ctx, buff, &len,
-                              text+done_len,
+                              text+pushed_len,
                               padded_bytes)) {
         EVP_CIPHER_CTX_cleanup(ctx);
         ERR_print_errors_fp(stderr);
         return -1;
     }
 
-    done_len += len;
+    pushed_len += len;
     push_payload(fd, buff, len);
 
     /* Some remain bytes are padded */
@@ -184,9 +184,9 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
 
     push_payload(fd, buff, len);
 
-    done_len += len;
+    pushed_len += len;
 
-    return done_len;
+    return pushed_len;
 }
 
 void show_header(struct aes_header *header)
@@ -210,35 +210,34 @@ struct aes_header *encrypt_aes256(const char *source,
 
     struct aes_header *header = NULL;
 
-    struct stat source_stbuf = {0};
-
-    EVP_CIPHER_CTX *ctx = NULL;
-
     int sfd = get_source_fd(source);
     int dfd = get_dest_fd(dest);
 
     if ((sfd == EXIT_FAILURE) || (dfd == EXIT_FAILURE))
-        return NULL;
+        goto close_filedes;
 
-    header_len = sizeof(struct aes_header);
+    off_t header_len = sizeof(struct aes_header);
     if (NULL == (header = malloc(header_len))) {
         printf("Not able to allocate memory \n");
-        return NULL;
+        goto close_filedes;
     }
 
     memset(header, 0, header_len);
 
-    ret = get_iv(iv);
-    if (ret < 0) return NULL;
+    int ret = get_iv(iv);
+    if (ret < 0) goto close_filedes;
 
-    ctx = context_register(key, iv, 1);
-    if (NULL == ctx) return NULL;
+    EVP_CIPHER_CTX *ctx = context_register(key, iv, 1);
+    if (NULL == ctx) goto destroy_context;
 
+    struct stat source_stbuf = {0};
     get_stat(sfd, &source_stbuf);
-    plaintext_size = (unsigned int)source_stbuf.st_size;
-    plaintext = (unsigned char *)fetch_payload(sfd, plaintext_size);
 
-    checksum = crc32((const uint8_t *)plaintext, plaintext_size);
+    unsigned int plaintext_size = (unsigned int)source_stbuf.st_size;
+    unsigned char *plaintext = (unsigned char *)fetch_payload(sfd, plaintext_size);
+    if (MAP_FAILED == plaintext) goto destroy_payload;
+
+    uint32_t checksum = crc32((const uint8_t *)plaintext, plaintext_size);
 
     /* Fill header */
     header->magic_number = (uint32_t)0xDEADBEEF;
@@ -247,12 +246,12 @@ struct aes_header *encrypt_aes256(const char *source,
     memmove(header->iv, iv, AES256_BLOCK_SIZE);
 
     /* Map header structure in memory, not to copy cell to cell */
-    len = push_payload(dfd, (unsigned char *)header, header_len);
-    if (len < 0) return NULL;
+    int len = push_payload(dfd, (unsigned char *)header, header_len);
+    if (len < 0) goto destroy_payload;
 
     /* Encrypt plain text and push it to filedes partially */
     len = push_cipher_payload(dfd, ctx, plaintext, plaintext_size);
-    if (len < 0) return NULL;
+    if (len < 0) goto destroy_payload;
 
     EVP_CIPHER_CTX_free(ctx);
     destroy_payload(plaintext);
@@ -283,52 +282,53 @@ int decrypt_aes256(const char *source,
 {
     uint8_t header_iv[AES256_BLOCK_SIZE] = {0};
 
-    struct stat source_stbuf = {0};
     struct aes_header header = {0};
-
-    EVP_CIPHER_CTX *ctx = NULL;
 
     int sfd = get_source_fd(source);
     int dfd = get_dest_fd(destination);
 
     if ((sfd == EXIT_FAILURE) || (dfd == EXIT_FAILURE))
-        return -1;
+        goto close_filedes;
 
-    header_len = sizeof(struct aes_header);
+    off_t header_len = sizeof(struct aes_header);
 
+    struct stat source_stbuf = {0};
     get_stat(sfd, &source_stbuf);
-    payload_len = source_stbuf.st_size;
-    payload = (unsigned char *)fetch_payload(sfd, payload_len);
+    unsigned int payload_len = source_stbuf.st_size;
+    unsigned char *payload = (unsigned char *)fetch_payload(sfd, payload_len);
+    if (MAP_FAILED == payload) goto destroy_payload;
 
     /* Map first header_len bytes to header struct fileds */
     memmove((void*)&header, payload, header_len);
 
     /* Dispatch header from encrypted file */
-    header_size = header.size;
-    header_crc = header.checksum;
+    uint32_t header_size = header.size;
+    uint32_t header_crc = header.checksum;
     memmove(header_iv, header.iv, AES256_BLOCK_SIZE);
 
     /* Split payload and get ciphertext */
-    ciphertext_len = payload_len - header_len;
-    ciphertext = payload + header_len;
+    unsigned int ciphertext_len = payload_len - header_len;
+    unsigned char *ciphertext = payload + header_len;
 
-    ctx = context_register(key, (unsigned char *)header_iv, 0);
+    EVP_CIPHER_CTX *ctx = context_register(key, (unsigned char *)header_iv, 0);
+    if (NULL == ctx) goto destroy_payload;
 
-    len = push_cipher_payload(dfd, ctx, ciphertext, ciphertext_len);
-    if (len < 0) return -1;
+    int len = push_cipher_payload(dfd, ctx, ciphertext, ciphertext_len);
+    if (len < 0) goto destroy_payload;
 
-    plaintext = (unsigned char *)fetch_payload(dfd, len);
+    unsigned char *plaintext = (unsigned char *)fetch_payload(dfd, len);
+    if (MAP_FAILED == plaintext) goto destroy_context;
 
     if (header_size != (uint32_t) len) {
         printf("Size of plain text and ciphertext doesn't match\n");
-        return -1;
+        goto destroy_context;
     }
 
-    plaintext_crc = crc32((const uint8_t *)plaintext, len);
+    uint32_t plaintext_crc = crc32((const uint8_t *)plaintext, len);
 
     if (header_crc != plaintext_crc) {
         printf("Checksum of plain text and cipher text doesn't match\n");
-        return -1;
+        goto destroy_context;
     }
 
     EVP_CIPHER_CTX_free(ctx);
