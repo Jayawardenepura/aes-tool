@@ -259,22 +259,30 @@ struct aes_header *encrypt_aes256(const char *source,
     close(dfd);
 
     return header;
+
+    /* Exception handle */
+
+    close_filedes:
+        free(header);
+        close(sfd);
+        close(dfd);
+        return NULL;
+
+    destroy_context:
+        free(header);
+        EVP_CIPHER_CTX_free(ctx);
+        close(sfd);
+        close(dfd);
+        return NULL;
+
+    destroy_payload:
+        free(header);
+        destroy_payload(plaintext);
+        EVP_CIPHER_CTX_free(ctx);
+        close(sfd);
+        close(dfd);
+        return NULL;
 }
-
-int decrypt_aes256(char *source,
-                   char *destination,
-                   unsigned char *key)
-{
-    int len = 0;
-    off_t header_len = 0;
-    unsigned int payload_len = 0;
-    unsigned int ciphertext_len = 0;
-
-    uint32_t plaintext_crc = 0;
-
-    uint32_t header_size = 0;
-    uint32_t header_crc = 0;
-    uint8_t header_iv[16] = {0};
 
 int decrypt_aes256(const char *source,
                    const char *destination,
@@ -338,4 +346,23 @@ int decrypt_aes256(const char *source,
     close(dfd);
 
     return len;
+
+    close_filedes:
+        close(sfd);
+        close(dfd);
+        return -1;
+
+    destroy_payload:
+        destroy_payload(payload);
+        close(sfd);
+        close(dfd);
+        return -1;
+
+    destroy_context:
+        EVP_CIPHER_CTX_free(ctx);
+        destroy_payload(payload);
+        destroy_payload(plaintext);
+        close(sfd);
+        close(dfd);
+        return -1;
 }
