@@ -101,7 +101,6 @@ static int get_iv(unsigned char *iv)
     memmove(iv, (unsigned char *)temp_iv, AES256_BLOCK_SIZE);
 
     close(fd);
-
     return n;
 }
 
@@ -112,7 +111,6 @@ static void *fetch_payload(int fd, size_t size)
         fprintf(stderr, "Not able to fetch payload: %s\n", strerror(errno));
         return NULL;
     }
-
     return base;
 }
 
@@ -154,7 +152,7 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
     for (unsigned int i = 0; i < nblock; i++) {
         if (0 == EVP_CipherUpdate(ctx, buff, &len,
                                    text+i*block_size, block_size)) {
-            EVP_CIPHER_CTX_cleanup(ctx);
+            EVP_CIPHER_CTX_free(ctx);
             ERR_print_errors_fp(stderr);
             return EXIT_FAILURE;
         }
@@ -166,7 +164,7 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
     if(0 == EVP_CipherUpdate(ctx, buff, &len,
                               text+pushed_len,
                               padded_bytes)) {
-        EVP_CIPHER_CTX_cleanup(ctx);
+        EVP_CIPHER_CTX_free(ctx);
         ERR_print_errors_fp(stderr);
         return EXIT_FAILURE;
     }
@@ -181,9 +179,8 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
         return EXIT_FAILURE;
     }
 
-    push_payload(fd, buff, len);
-
     pushed_len += len;
+    push_payload(fd, buff, len);
 
     return pushed_len;
 }
@@ -318,24 +315,24 @@ int decrypt_aes256(const char *src_path,
     unsigned char *ciphertext = payload + header_len;
 
     EVP_CIPHER_CTX *ctx = context_register(key, (unsigned char *)header_iv, 0);
-    if (NULL == ctx) goto destroy_payload;
+    if (NULL == ctx) goto destroy_context;
 
     int len = push_cipher_payload(dfd, ctx, ciphertext, ciphertext_len);
     if (len < 0) goto destroy_payload;
 
     unsigned char *plaintext = (unsigned char *)fetch_payload(dfd, len);
-    if (MAP_FAILED == plaintext) goto destroy_context;
+    if (MAP_FAILED == plaintext) goto destroy_dest_payload;
 
     if (header_size != (uint32_t) len) {
         fprintf(stderr, "Size of plain text and ciphertext doesn't match\n");
-        goto destroy_context;
+        goto destroy_dest_payload;
     }
 
     uint32_t plaintext_crc = crc32((const uint8_t *)plaintext, len);
 
     if (header_crc != plaintext_crc) {
         fprintf(stderr, "Checksum of plain text and cipher text doesn't match\n");
-        goto destroy_context;
+        goto destroy_dest_payload;
     }
 
     EVP_CIPHER_CTX_free(ctx);
@@ -358,6 +355,13 @@ int decrypt_aes256(const char *src_path,
         return EXIT_FAILURE;
 
     destroy_context:
+        EVP_CIPHER_CTX_free(ctx);
+        destroy_payload(payload);
+        close(sfd);
+        close(dfd);
+        return EXIT_FAILURE;
+
+    destroy_dest_payload:
         EVP_CIPHER_CTX_free(ctx);
         destroy_payload(payload);
         destroy_payload(plaintext);
