@@ -41,8 +41,8 @@ int main(int argc, char *argv[])
     switch (type) {
         case(0x0):
             header = encrypt_aes256((const char *)argv[2],
-                                   (const char *)argv[3],
-                                   (unsigned char *)argv[4]);
+                                    (const char *)argv[3],
+                                    (unsigned char *)argv[4]);
             if (NULL == header) {
                 printf("Header is not valid - try again\n");
                 result = -1;

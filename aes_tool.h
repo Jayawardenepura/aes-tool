@@ -10,12 +10,22 @@ struct aes_header {
     uint8_t iv[16];         // Initialization vector for AES256
 };
 
+/*
+ * Print out header payload
+ */
 void show_header(struct aes_header *header);
 
+/*
+ * Encrypt payload given by source file,
+ * push the payload in file given by destination
+ */
 struct aes_header *encrypt_aes256(const char *source,
-                                  const char *dest,
+                                  const char *destination,
                                   const unsigned char *key);
-
+/*
+ * Decrypt payload given by source,
+ * push the payload in file given by destination
+ */
 int decrypt_aes256(const char *source,
                    const char *destination,
                    const unsigned char *key);

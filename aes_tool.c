@@ -203,7 +203,7 @@ void show_header(struct aes_header *header)
 }
 
 struct aes_header *encrypt_aes256(const char *source,
-                                  const char *dest,
+                                  const char *destination,
                                   const unsigned char *key)
 {
     uint8_t iv[AES256_BLOCK_SIZE] = {0};
@@ -211,7 +211,7 @@ struct aes_header *encrypt_aes256(const char *source,
     struct aes_header *header = NULL;
 
     int sfd = get_source_fd(source);
-    int dfd = get_dest_fd(dest);
+    int dfd = get_dest_fd(destination);
 
     if ((sfd == EXIT_FAILURE) || (dfd == EXIT_FAILURE))
         goto close_filedes;
