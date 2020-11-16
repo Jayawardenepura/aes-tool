@@ -15,9 +15,8 @@
 static EVP_CIPHER_CTX *context_register(const unsigned char *key, unsigned char *iv, int do_encrypt)
 {
     EVP_CIPHER_CTX *ctx;
-
-    /* Create and initialise the context */
-    if (NULL == (ctx = EVP_CIPHER_CTX_new())) {
+    ctx = EVP_CIPHER_CTX_new();
+    if (NULL == ctx) {
         ERR_print_errors_fp(stderr);
         return NULL;
     }
