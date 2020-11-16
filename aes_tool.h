@@ -24,13 +24,13 @@ void show_header(struct aes_header *header);
  * Encrypt payload given by source file,
  * push the payload in file given by destination
  */
-struct aes_header *encrypt_aes256(const char *source,
-                                  const char *destination,
+struct aes_header *encrypt_aes256(const char *src_path,
+                                  const char *dest_path,
                                   const unsigned char *key);
 /*
  * Decrypt payload given by source,
  * push the payload in file given by destination
  */
-int decrypt_aes256(const char *source,
-                   const char *destination,
+int decrypt_aes256(const char *src_path,
+                   const char *dest_path,
                    const unsigned char *key);
