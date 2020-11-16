@@ -3,7 +3,8 @@
 #define AES256_BLOCK_SIZE 16
 #define BUFFER_SIZE 64
 
-struct aes_header {
+struct  __attribute__((scalar_storage_order("little-endian"))) __attribute__((packed, aligned(1)))
+aes_header {
     uint32_t magic_number;  // 0xDEAFBEEF - first 4 bytes of header
     uint32_t size;          // Size of plain text
     uint32_t checksum;      // CRC32 checksum of written encrypted bytes
