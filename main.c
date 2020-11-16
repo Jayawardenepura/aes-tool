@@ -40,7 +40,10 @@ int main(int argc, char *argv[])
             if (NULL == header) {
                 fprintf(stderr, "Header is not valid - try again\n");
                 result = EXIT_FAILURE;
-            } else show_header(header);
+            } else {
+                show_header(header);
+                free(header);
+            }
             break;
         case(0x1):
             len = decrypt_aes256((const char *)argv[2],
