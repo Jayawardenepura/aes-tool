@@ -9,7 +9,7 @@
 
 int main(int argc, char *argv[])
 {
-    int opt, len = 0;
+    int len = 0;
     unsigned int type = 0;
     int result = EXIT_SUCCESS;
     struct aes_header *header = NULL;
@@ -19,6 +19,8 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /*
+    int opt = 0;
     while((opt = getopt(argc, argv, "h")) != -1) {
         switch(opt) {
             case 'h':
@@ -29,6 +31,7 @@ int main(int argc, char *argv[])
                 break;
         }
     }
+    */
 
     type = (strcmp(argv[1], "encrypt")) ? 0x1 : 0x0;
 
