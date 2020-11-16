@@ -1,16 +1,16 @@
 #include "aes_tool.h"
 #include "mit_crc32.h"
 
+#include <openssl/err.h>
+#include <openssl/evp.h>
+
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <fcntl.h>
-#include <errno.h>
-
-#include <openssl/err.h>
-#include <openssl/evp.h>
 
 static EVP_CIPHER_CTX *context_register(const unsigned char *key, unsigned char *iv, int do_encrypt)
 {
