@@ -139,12 +139,12 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
     unsigned int padded_bytes = text_len - (nblock * block_size);
 
     if (NULL == ctx) {
-        printf("Not able to push payload dut to broken context\n");
+        fprintf(stderr, "Not able to push payload dut to broken context\n");
         return -1;
     }
 
     if (NULL == text) {
-        printf("Not able to push payload dut to broken input data\n");
+        fprintf(stderr, "Not able to push payload dut to broken input data\n");
         return -1;
     }
 
@@ -192,7 +192,7 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
 void show_header(struct aes_header *header)
 {
     if (NULL == header) {
-        printf("Not able to show aes header\n");
+        fprintf(stderr, "Not able to show aes header\n");
         return;
     }
 
@@ -218,7 +218,7 @@ struct aes_header *encrypt_aes256(const char *source,
 
     off_t header_len = sizeof(struct aes_header);
     if (NULL == (header = malloc(header_len))) {
-        printf("Not able to allocate memory \n");
+        fprintf(stderr, "Not able to allocate memory \n");
         goto close_filedes;
     }
 
@@ -328,14 +328,14 @@ int decrypt_aes256(const char *source,
     if (MAP_FAILED == plaintext) goto destroy_context;
 
     if (header_size != (uint32_t) len) {
-        printf("Size of plain text and ciphertext doesn't match\n");
+        fprintf(stderr, "Size of plain text and ciphertext doesn't match\n");
         goto destroy_context;
     }
 
     uint32_t plaintext_crc = crc32((const uint8_t *)plaintext, len);
 
     if (header_crc != plaintext_crc) {
-        printf("Checksum of plain text and cipher text doesn't match\n");
+        fprintf(stderr, "Checksum of plain text and cipher text doesn't match\n");
         goto destroy_context;
     }
 
