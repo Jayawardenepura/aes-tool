@@ -139,12 +139,12 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
 
     if (NULL == ctx) {
         fprintf(stderr, "Not able to push payload dut to broken context\n");
-        return -1;
+        return EXIT_FAILURE;
     }
 
     if (NULL == text) {
         fprintf(stderr, "Not able to push payload dut to broken input data\n");
-        return -1;
+        return EXIT_FAILURE;
     }
 
     /*
@@ -156,7 +156,7 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
                                    text+i*block_size, block_size)) {
             EVP_CIPHER_CTX_cleanup(ctx);
             ERR_print_errors_fp(stderr);
-            return -1;
+            return EXIT_FAILURE;
         }
         pushed_len += len;
         push_payload(fd, buff, len);
@@ -168,7 +168,7 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
                               padded_bytes)) {
         EVP_CIPHER_CTX_cleanup(ctx);
         ERR_print_errors_fp(stderr);
-        return -1;
+        return EXIT_FAILURE;
     }
 
     pushed_len += len;
@@ -178,7 +178,7 @@ static int push_cipher_payload(int fd, EVP_CIPHER_CTX *ctx, unsigned char *text,
     if(0 == EVP_CipherFinal_ex(ctx, buff, &len)) {
         EVP_CIPHER_CTX_free(ctx);
         ERR_print_errors_fp(stderr);
-        return -1;
+        return EXIT_FAILURE;
     }
 
     push_payload(fd, buff, len);
@@ -349,13 +349,13 @@ int decrypt_aes256(const char *source,
     close_filedes:
         close(sfd);
         close(dfd);
-        return -1;
+        return EXIT_FAILURE;
 
     destroy_payload:
         destroy_payload(payload);
         close(sfd);
         close(dfd);
-        return -1;
+        return EXIT_FAILURE;
 
     destroy_context:
         EVP_CIPHER_CTX_free(ctx);
@@ -363,5 +363,5 @@ int decrypt_aes256(const char *source,
         destroy_payload(plaintext);
         close(sfd);
         close(dfd);
-        return -1;
+        return EXIT_FAILURE;
 }
