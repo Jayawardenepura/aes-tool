@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#define MAGIC_NUMBER (uint32_t)0xDEADBEEF
+
 #define AES256_BLOCK_SIZE 16
 #define BUFFER_SIZE 64
 

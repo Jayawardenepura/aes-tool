@@ -239,7 +239,7 @@ struct aes_header *encrypt_aes256(const char *source,
     uint32_t checksum = crc32((const uint8_t *)plaintext, plaintext_size);
 
     /* Fill header */
-    header->magic_number = (uint32_t)0xDEADBEEF;
+    header->magic_number = MAGIC_NUMBER;
     header->size = (uint32_t)plaintext_size;
     header->checksum = checksum;
     memmove(header->iv, iv, AES256_BLOCK_SIZE);
